@@ -5,6 +5,7 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_stock_data,
 )
+from tradingagents.agents.utils.tool_call_compat import coerce_plain_text_tool_calls
 from tradingagents.dataflows.config import get_config
 
 
@@ -74,10 +75,11 @@ Volume-Based Indicators:
         chain = prompt | llm.bind_tools(tools)
 
         result = chain.invoke(state["messages"])
+        result = coerce_plain_text_tool_calls(result, tools)
 
         report = ""
 
-        if len(result.tool_calls) == 0:
+        if len(getattr(result, "tool_calls", []) or []) == 0:
             report = result.content
 
         return {
