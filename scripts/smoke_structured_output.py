@@ -4,14 +4,17 @@ Runs the three decision-making agents (Research Manager, Trader, Portfolio
 Manager) directly with their structured-output bindings and prints the
 typed Pydantic instance + the rendered markdown for each.  Use this to
 verify a provider's native structured-output mode (json_schema for
-OpenAI / xAI / DeepSeek / Qwen / GLM, response_schema for Gemini, tool-use
-for Anthropic) returns clean instances on the schemas we ship.
+OpenAI / xAI, response_schema for Gemini, tool-use for Anthropic, and
+function-calling for OpenAI-compatible providers) returns clean instances on
+the schemas we ship.
 
 Usage:
     OPENAI_API_KEY=... python scripts/smoke_structured_output.py openai
     GOOGLE_API_KEY=... python scripts/smoke_structured_output.py google
     ANTHROPIC_API_KEY=... python scripts/smoke_structured_output.py anthropic
     DEEPSEEK_API_KEY=... python scripts/smoke_structured_output.py deepseek
+    python scripts/smoke_structured_output.py vllm --quick-model <served-model> --deep-model <served-model>
+    python scripts/smoke_structured_output.py litellm --quick-model <proxy-model> --deep-model <proxy-model>
 
 The script does NOT call propagate(), to keep the surface tight and the
 cost low — it exercises only the three structured-output calls we just
@@ -39,6 +42,8 @@ PROVIDER_DEFAULTS = {
     "qwen": ("qwen-plus", None),
     "glm": ("glm-5", None),
     "xai": ("grok-4", None),
+    "vllm": ("Qwen/Qwen2.5-7B-Instruct", None),
+    "litellm": ("openai/gpt-5.4-mini", None),
 }
 
 

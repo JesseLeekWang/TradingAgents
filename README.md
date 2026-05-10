@@ -145,12 +145,14 @@ export DEEPSEEK_API_KEY=...        # DeepSeek
 export DASHSCOPE_API_KEY=...       # Qwen (Alibaba DashScope)
 export ZHIPU_API_KEY=...           # GLM (Zhipu)
 export OPENROUTER_API_KEY=...      # OpenRouter
+export VLLM_API_KEY=...            # vLLM (optional, for secured local servers)
+export LITELLM_API_KEY=...         # LiteLLM proxy (optional, if proxy requires auth)
 export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 ```
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
-For local models, configure Ollama with `llm_provider: "ollama"` in your config.
+For local models, configure Ollama with `llm_provider: "ollama"` or vLLM with `llm_provider: "vllm"` in your config. To route through a LiteLLM proxy, use `llm_provider: "litellm"`.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash
@@ -184,7 +186,7 @@ An interface will appear showing results as they load, letting you track the age
 
 ### Implementation Details
 
-We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope), GLM (Zhipu), OpenRouter, Ollama for local models, and Azure OpenAI for enterprise.
+We built TradingAgents with LangGraph to ensure flexibility and modularity. The framework supports multiple LLM providers: OpenAI, Google, Anthropic, xAI, DeepSeek, Qwen (Alibaba DashScope), GLM (Zhipu), OpenRouter, Ollama and vLLM for local models, LiteLLM proxy routing, and Azure OpenAI for enterprise.
 
 ### Python Usage
 
@@ -208,7 +210,7 @@ from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
 
 config = DEFAULT_CONFIG.copy()
-config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, glm, openrouter, ollama, azure
+config["llm_provider"] = "openai"        # openai, google, anthropic, xai, deepseek, qwen, glm, openrouter, ollama, vllm, litellm, azure
 config["deep_think_llm"] = "gpt-5.4"     # Model for complex reasoning
 config["quick_think_llm"] = "gpt-5.4-mini" # Model for quick tasks
 config["max_debate_rounds"] = 2

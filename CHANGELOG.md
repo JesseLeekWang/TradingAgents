@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- **vLLM and LiteLLM providers** — both use the existing OpenAI-compatible
+  client path with local defaults (`http://localhost:8000/v1` for vLLM and
+  `http://localhost:4000/v1` for LiteLLM), CLI selection, model catalog
+  entries, and custom model ID support.
+
 ## [0.2.4] — 2026-04-25
 
 ### Added

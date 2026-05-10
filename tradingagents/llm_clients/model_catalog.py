@@ -114,6 +114,30 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Qwen3:latest (8B, local)", "qwen3:latest"),
         ],
     },
+    "vllm": {
+        "quick": [
+            ("Custom served model ID", "custom"),
+            ("Qwen2.5 7B Instruct", "Qwen/Qwen2.5-7B-Instruct"),
+            ("Llama 3.1 8B Instruct", "meta-llama/Llama-3.1-8B-Instruct"),
+        ],
+        "deep": [
+            ("Custom served model ID", "custom"),
+            ("Qwen2.5 32B Instruct", "Qwen/Qwen2.5-32B-Instruct"),
+            ("Llama 3.1 70B Instruct", "meta-llama/Llama-3.1-70B-Instruct"),
+        ],
+    },
+    "litellm": {
+        "quick": [
+            ("Custom model or alias", "custom"),
+            ("OpenAI GPT-5.4 Mini via LiteLLM", "openai/gpt-5.4-mini"),
+            ("Anthropic Claude Sonnet 4.6 via LiteLLM", "anthropic/claude-sonnet-4-6"),
+        ],
+        "deep": [
+            ("Custom model or alias", "custom"),
+            ("OpenAI GPT-5.4 via LiteLLM", "openai/gpt-5.4"),
+            ("Anthropic Claude Opus 4.6 via LiteLLM", "anthropic/claude-opus-4-6"),
+        ],
+    },
 }
 
 

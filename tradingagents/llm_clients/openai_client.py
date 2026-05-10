@@ -117,16 +117,18 @@ _PROVIDER_CONFIG = {
     "glm": ("https://api.z.ai/api/paas/v4/", "ZHIPU_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
+    "vllm": ("http://localhost:8000/v1", "VLLM_API_KEY"),
+    "litellm": ("http://localhost:4000/v1", "LITELLM_API_KEY"),
 }
 
 
 class OpenAIClient(BaseLLMClient):
-    """Client for OpenAI, Ollama, OpenRouter, and xAI providers.
+    """Client for OpenAI and OpenAI-compatible providers.
 
     For native OpenAI models, uses the Responses API (/v1/responses) which
     supports reasoning_effort with function tools across all model families
-    (GPT-4.1, GPT-5). Third-party compatible providers (xAI, OpenRouter,
-    Ollama) use standard Chat Completions.
+    (GPT-4.1, GPT-5). Third-party compatible providers use standard Chat
+    Completions.
     """
 
     def __init__(
@@ -154,6 +156,8 @@ class OpenAIClient(BaseLLMClient):
                 api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
+                elif self.provider in ("vllm", "litellm"):
+                    llm_kwargs["api_key"] = self.provider
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:
