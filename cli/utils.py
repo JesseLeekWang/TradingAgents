@@ -220,7 +220,64 @@ def _parse_openai_compatible_models(payload: Dict[str, Any]) -> List[Tuple[str, 
     return parsed
 
 
-def _fetch_openai_compatible_models(provider: str) -> List[Tuple[str, str]]:
+def _normalize_base_url(base_url: str) -> str:
+    """Normalize user-entered OpenAI-compatible base URLs."""
+    return base_url.strip().rstrip("/")
+
+
+def _validate_base_url(value: str):
+    """Return True for valid HTTP(S) base URLs, or a questionary error string."""
+    url = value.strip()
+    if url.startswith(("http://", "https://")) and len(url.split("://", 1)[1]) > 0:
+        return True
+    return "Please enter a base URL starting with http:// or https://."
+
+
+def _select_openai_compatible_base_url(provider: str, default_base_url: str) -> str:
+    """Let users keep the default local endpoint or type a custom base URL."""
+    provider_lower = provider.lower()
+    display_name, _, _ = _OPENAI_COMPATIBLE_MODEL_DISCOVERY[provider_lower]
+
+    choice = questionary.select(
+        f"Select {display_name} API endpoint:",
+        choices=[
+            questionary.Choice(
+                f"Use default ({default_base_url})",
+                value=default_base_url,
+            ),
+            questionary.Choice("Enter custom base URL", value="custom"),
+        ],
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:magenta noinherit"),
+            ("highlighted", "fg:magenta noinherit"),
+            ("pointer", "fg:magenta noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print(f"\n[red]No {display_name} endpoint selected. Exiting...[/red]")
+        exit(1)
+
+    if choice == "custom":
+        custom_url = questionary.text(
+            f"Enter {display_name} base URL:",
+            default=default_base_url,
+            validate=_validate_base_url,
+        ).ask()
+
+        if not custom_url:
+            console.print(f"\n[red]No {display_name} base URL provided. Exiting...[/red]")
+            exit(1)
+
+        return _normalize_base_url(custom_url)
+
+    return _normalize_base_url(choice)
+
+
+def _fetch_openai_compatible_models(
+    provider: str, base_url: str | None = None
+) -> List[Tuple[str, str]]:
     """Fetch models from a local OpenAI-compatible provider's /models endpoint."""
     import requests
 
@@ -228,10 +285,11 @@ def _fetch_openai_compatible_models(provider: str) -> List[Tuple[str, str]]:
     if provider_lower not in _OPENAI_COMPATIBLE_MODEL_DISCOVERY:
         return []
 
-    display_name, base_url, api_key_env = _OPENAI_COMPATIBLE_MODEL_DISCOVERY[
+    display_name, default_base_url, api_key_env = _OPENAI_COMPATIBLE_MODEL_DISCOVERY[
         provider_lower
     ]
-    url = f"{base_url.rstrip('/')}/models"
+    discovery_base_url = _normalize_base_url(base_url or default_base_url)
+    url = f"{discovery_base_url}/models"
     api_key = os.environ.get(api_key_env, "")
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
 
@@ -244,14 +302,19 @@ def _fetch_openai_compatible_models(provider: str) -> List[Tuple[str, str]]:
         return []
 
 
-def select_openai_compatible_model(provider: str, mode: str) -> str:
+def select_openai_compatible_model(
+    provider: str, mode: str, base_url: str | None = None
+) -> str:
     """Select a model discovered from vLLM/LiteLLM, with catalog fallback."""
     provider_lower = provider.lower()
-    display_name, base_url, _ = _OPENAI_COMPATIBLE_MODEL_DISCOVERY[provider_lower]
-    models = _fetch_openai_compatible_models(provider_lower)
+    display_name, default_base_url, _ = _OPENAI_COMPATIBLE_MODEL_DISCOVERY[
+        provider_lower
+    ]
+    discovery_base_url = _normalize_base_url(base_url or default_base_url)
+    models = _fetch_openai_compatible_models(provider_lower, discovery_base_url)
 
     if models:
-        prompt = f"Select {display_name} Model (available from {base_url}):"
+        prompt = f"Select {display_name} Model (available from {discovery_base_url}):"
         choices = [
             questionary.Choice(name, value=model_id) for name, model_id in models
         ]
@@ -294,7 +357,7 @@ def _prompt_custom_model_id() -> str:
     ).ask().strip()
 
 
-def _select_model(provider: str, mode: str) -> str:
+def _select_model(provider: str, mode: str, base_url: str | None = None) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
     provider_lower = provider.lower()
 
@@ -302,7 +365,7 @@ def _select_model(provider: str, mode: str) -> str:
         return select_openrouter_model()
 
     if provider_lower in _OPENAI_COMPATIBLE_MODEL_DISCOVERY:
-        return select_openai_compatible_model(provider_lower, mode)
+        return select_openai_compatible_model(provider_lower, mode, base_url)
 
     if provider_lower == "azure":
         return questionary.text(
@@ -336,14 +399,14 @@ def _select_model(provider: str, mode: str) -> str:
     return choice
 
 
-def select_shallow_thinking_agent(provider) -> str:
+def select_shallow_thinking_agent(provider, base_url: str | None = None) -> str:
     """Select shallow thinking llm engine using an interactive selection."""
-    return _select_model(provider, "quick")
+    return _select_model(provider, "quick", base_url)
 
 
-def select_deep_thinking_agent(provider) -> str:
+def select_deep_thinking_agent(provider, base_url: str | None = None) -> str:
     """Select deep thinking llm engine using an interactive selection."""
-    return _select_model(provider, "deep")
+    return _select_model(provider, "deep", base_url)
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
@@ -368,6 +431,9 @@ def select_llm_provider() -> tuple[str, str | None]:
         exit(1)
 
     provider, url = choice
+    if provider in _OPENAI_COMPATIBLE_MODEL_DISCOVERY and url:
+        url = _select_openai_compatible_base_url(provider, url)
+
     return provider, url
 
 

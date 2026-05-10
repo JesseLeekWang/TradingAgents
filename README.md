@@ -156,7 +156,8 @@ For local models, configure Ollama with `llm_provider: "ollama"` or vLLM with
 `llm_provider: "vllm"` in your config. To route through a LiteLLM proxy, use
 `llm_provider: "litellm"`. In the interactive CLI, vLLM and LiteLLM
 automatically query their OpenAI-compatible `/models` endpoints and list the
-served models when the local server is running.
+served models when the local server is running. You can keep the default local
+base URL or type a custom vLLM/LiteLLM base URL during provider selection.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash

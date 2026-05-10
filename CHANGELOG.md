@@ -14,7 +14,8 @@ Breaking changes within the 0.x line are called out explicitly.
   client path with local defaults (`http://localhost:8000/v1` for vLLM and
   `http://localhost:4000/v1` for LiteLLM), CLI selection, model catalog
   entries, custom model ID support, and automatic `/models` discovery in the
-  interactive CLI.
+  interactive CLI. Users can keep the default local endpoint or type a custom
+  vLLM/LiteLLM base URL during provider selection.
 
 ## [0.2.4] — 2026-04-25
 
