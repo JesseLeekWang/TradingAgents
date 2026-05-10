@@ -152,7 +152,11 @@ export ALPHA_VANTAGE_API_KEY=...   # Alpha Vantage
 
 For enterprise providers (e.g. Azure OpenAI, AWS Bedrock), copy `.env.enterprise.example` to `.env.enterprise` and fill in your credentials.
 
-For local models, configure Ollama with `llm_provider: "ollama"` or vLLM with `llm_provider: "vllm"` in your config. To route through a LiteLLM proxy, use `llm_provider: "litellm"`.
+For local models, configure Ollama with `llm_provider: "ollama"` or vLLM with
+`llm_provider: "vllm"` in your config. To route through a LiteLLM proxy, use
+`llm_provider: "litellm"`. In the interactive CLI, vLLM and LiteLLM
+automatically query their OpenAI-compatible `/models` endpoints and list the
+served models when the local server is running.
 
 Alternatively, copy `.env.example` to `.env` and fill in your keys:
 ```bash

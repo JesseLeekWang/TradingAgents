@@ -1,5 +1,7 @@
+import os
+from typing import Any, Dict, List, Tuple
+
 import questionary
-from typing import List, Optional, Tuple, Dict
 
 from rich.console import Console
 
@@ -9,6 +11,27 @@ from tradingagents.llm_clients.model_catalog import get_model_options
 console = Console()
 
 TICKER_INPUT_EXAMPLES = "Examples: SPY, CNC.TO, 7203.T, 0700.HK"
+
+# (display_name, provider_key, base_url)
+PROVIDERS = [
+    ("OpenAI", "openai", "https://api.openai.com/v1"),
+    ("Google", "google", None),
+    ("Anthropic", "anthropic", "https://api.anthropic.com/"),
+    ("xAI", "xai", "https://api.x.ai/v1"),
+    ("DeepSeek", "deepseek", "https://api.deepseek.com"),
+    ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+    ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
+    ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
+    ("Azure OpenAI", "azure", None),
+    ("Ollama", "ollama", "http://localhost:11434/v1"),
+    ("vLLM", "vllm", "http://localhost:8000/v1"),
+    ("LiteLLM", "litellm", "http://localhost:4000/v1"),
+]
+
+_OPENAI_COMPATIBLE_MODEL_DISCOVERY = {
+    "vllm": ("vLLM", "http://localhost:8000/v1", "VLLM_API_KEY"),
+    "litellm": ("LiteLLM", "http://localhost:4000/v1", "LITELLM_API_KEY"),
+}
 
 ANALYST_ORDER = [
     ("Market Analyst", AnalystType.MARKET),
@@ -174,6 +197,95 @@ def select_openrouter_model() -> str:
     return choice
 
 
+def _parse_openai_compatible_models(payload: Dict[str, Any]) -> List[Tuple[str, str]]:
+    """Parse OpenAI-compatible /models responses into display/value pairs."""
+    parsed = []
+    seen = set()
+    for model in payload.get("data", []):
+        if isinstance(model, str):
+            model_id = model
+            display = model
+        elif isinstance(model, dict):
+            model_id = model.get("id") or model.get("name")
+            display = model.get("name") or model_id
+        else:
+            continue
+
+        if not model_id or model_id in seen:
+            continue
+
+        seen.add(model_id)
+        parsed.append((display, model_id))
+
+    return parsed
+
+
+def _fetch_openai_compatible_models(provider: str) -> List[Tuple[str, str]]:
+    """Fetch models from a local OpenAI-compatible provider's /models endpoint."""
+    import requests
+
+    provider_lower = provider.lower()
+    if provider_lower not in _OPENAI_COMPATIBLE_MODEL_DISCOVERY:
+        return []
+
+    display_name, base_url, api_key_env = _OPENAI_COMPATIBLE_MODEL_DISCOVERY[
+        provider_lower
+    ]
+    url = f"{base_url.rstrip('/')}/models"
+    api_key = os.environ.get(api_key_env, "")
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        return _parse_openai_compatible_models(resp.json())
+    except Exception as e:
+        console.print(f"\n[yellow]Could not fetch {display_name} models: {e}[/yellow]")
+        return []
+
+
+def select_openai_compatible_model(provider: str, mode: str) -> str:
+    """Select a model discovered from vLLM/LiteLLM, with catalog fallback."""
+    provider_lower = provider.lower()
+    display_name, base_url, _ = _OPENAI_COMPATIBLE_MODEL_DISCOVERY[provider_lower]
+    models = _fetch_openai_compatible_models(provider_lower)
+
+    if models:
+        prompt = f"Select {display_name} Model (available from {base_url}):"
+        choices = [
+            questionary.Choice(name, value=model_id) for name, model_id in models
+        ]
+        choices.append(questionary.Choice("Custom model ID", value="custom"))
+    else:
+        prompt = f"Select Your [{mode.title()}-Thinking LLM Engine]:"
+        choices = [
+            questionary.Choice(display, value=value)
+            for display, value in get_model_options(provider_lower, mode)
+        ]
+
+    choice = questionary.select(
+        prompt,
+        choices=choices,
+        instruction="\n- Use arrow keys to navigate\n- Press Enter to select",
+        style=questionary.Style([
+            ("selected", "fg:magenta noinherit"),
+            ("highlighted", "fg:magenta noinherit"),
+            ("pointer", "fg:magenta noinherit"),
+        ]),
+    ).ask()
+
+    if choice is None:
+        console.print(
+            f"\n[red]No {mode} thinking llm engine selected. Exiting...[/red]"
+        )
+        exit(1)
+
+    if choice == "custom":
+        return _prompt_custom_model_id()
+
+    return choice
+
+
 def _prompt_custom_model_id() -> str:
     """Prompt user to type a custom model ID."""
     return questionary.text(
@@ -184,10 +296,15 @@ def _prompt_custom_model_id() -> str:
 
 def _select_model(provider: str, mode: str) -> str:
     """Select a model for the given provider and mode (quick/deep)."""
-    if provider.lower() == "openrouter":
+    provider_lower = provider.lower()
+
+    if provider_lower == "openrouter":
         return select_openrouter_model()
 
-    if provider.lower() == "azure":
+    if provider_lower in _OPENAI_COMPATIBLE_MODEL_DISCOVERY:
+        return select_openai_compatible_model(provider_lower, mode)
+
+    if provider_lower == "azure":
         return questionary.text(
             f"Enter Azure deployment name ({mode}-thinking):",
             validate=lambda x: len(x.strip()) > 0 or "Please enter a deployment name.",
@@ -230,22 +347,6 @@ def select_deep_thinking_agent(provider) -> str:
 
 def select_llm_provider() -> tuple[str, str | None]:
     """Select the LLM provider and its API endpoint."""
-    # (display_name, provider_key, base_url)
-    PROVIDERS = [
-        ("OpenAI", "openai", "https://api.openai.com/v1"),
-        ("Google", "google", None),
-        ("Anthropic", "anthropic", "https://api.anthropic.com/"),
-        ("xAI", "xai", "https://api.x.ai/v1"),
-        ("DeepSeek", "deepseek", "https://api.deepseek.com"),
-        ("Qwen", "qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-        ("GLM", "glm", "https://open.bigmodel.cn/api/paas/v4/"),
-        ("OpenRouter", "openrouter", "https://openrouter.ai/api/v1"),
-        ("Azure OpenAI", "azure", None),
-        ("Ollama", "ollama", "http://localhost:11434/v1"),
-        ("vLLM", "vllm", "http://localhost:8000/v1"),
-        ("LiteLLM", "litellm", "http://localhost:4000/v1"),
-    ]
-
     choice = questionary.select(
         "Select your LLM Provider:",
         choices=[
